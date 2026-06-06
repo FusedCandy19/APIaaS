@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 import { apiClient } from '../api/client';
 import { useBrandingStore } from '../store/branding.store';
 import { 
@@ -27,33 +28,7 @@ export default function Docs() {
   const [selectedKey, setSelectedKey] = useState('YOUR_API_KEY');
   const [copiedCode, setCopiedCode] = useState(false);
 
-  // Fetch keys (to inject in documentation examples)
-  const { data: keys = [] } = useQuery<any[]>({
-    queryKey: ['docsKeysDropdown'],
-    queryFn: async () => {
-      const res = await apiClient.get('/v1/keys');
-      return res.data.filter((k: any) => k.status === 'active');
-    },
-  });
-
-  // Fetch models pricing
-  const { data: modelsData } = useQuery<{ data: ModelInfo[] }>({
-    queryKey: ['docsModelsList'],
-    queryFn: async () => {
-      const res = await apiClient.get('/v1/models');
-      return res.data;
-    },
-  });
-
-  const models = modelsData?.data || [];
-
   const { settings } = useBrandingStore();
-
-  const handleCopy = (code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
-  };
 
   const getApiBaseUrl = () => {
     const hostname = window.location.hostname;
@@ -65,6 +40,32 @@ export default function Docs() {
   };
 
   const baseUrl = getApiBaseUrl();
+
+  // Fetch keys (to inject in documentation examples)
+  const { data: keys = [] } = useQuery<any[]>({
+    queryKey: ['docsKeysDropdown'],
+    queryFn: async () => {
+      const res = await apiClient.get('/v1/keys');
+      return res.data.filter((k: any) => k.status === 'active');
+    },
+  });
+
+  // Fetch models pricing (using raw axios to call the public /v1/models route dynamically)
+  const { data: modelsData } = useQuery<{ data: ModelInfo[] }>({
+    queryKey: ['docsModelsList'],
+    queryFn: async () => {
+      const res = await axios.get(`${baseUrl}/models`);
+      return res.data;
+    },
+  });
+
+  const models = modelsData?.data || [];
+
+  const handleCopy = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
 
   const getCodeSnippet = () => {
     const key = selectedKey === 'YOUR_API_KEY' ? 'sk_proj_xxxx_xxxxxxxxxxxx' : selectedKey;
