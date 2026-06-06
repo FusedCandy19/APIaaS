@@ -63,14 +63,38 @@ export async function gatewayRoutes(fastify: FastifyInstance) {
     const requestedModelId = body.model || 'gpt-4o';
     
     // Find model in DB
-    const modelRecord = await prisma.model.findUnique({
+    let modelRecord = await prisma.model.findUnique({
       where: { id: requestedModelId },
     });
 
-    if (!modelRecord || !modelRecord.enabled) {
+    const upstreamKey = config.UPSTREAM_OPENAI_API_KEY;
+
+    if (!modelRecord) {
+      if (upstreamKey) {
+        // Dynamically register the model so it can be queried and shown on the dashboard
+        modelRecord = await prisma.model.create({
+          data: {
+            id: requestedModelId,
+            name: requestedModelId,
+            inputPricePerMillion: 0.0,
+            outputPricePerMillion: 0.0,
+            enabled: true,
+          },
+        });
+        console.log(`Dynamically registered new model: ${requestedModelId}`);
+      } else {
+        return reply.status(400).send({
+          error: {
+            message: `The model '${requestedModelId}' is not supported or is currently disabled.`,
+            type: 'invalid_request_error',
+            code: 'model_not_found',
+          },
+        });
+      }
+    } else if (!modelRecord.enabled) {
       return reply.status(400).send({
         error: {
-          message: `The model '${requestedModelId}' is not supported or is currently disabled.`,
+          message: `The model '${requestedModelId}' is currently disabled.`,
           type: 'invalid_request_error',
           code: 'model_not_found',
         },
@@ -84,7 +108,6 @@ export async function gatewayRoutes(fastify: FastifyInstance) {
     });
 
     // 3. Handle Request (Proxy vs. Simulation)
-    const upstreamKey = config.UPSTREAM_OPENAI_API_KEY;
     if (upstreamKey) {
       // PROXY MODE: Forward to real OpenAI compatible endpoint
       try {
