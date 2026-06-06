@@ -1,14 +1,14 @@
 import { prisma } from './db';
 import { config } from './config';
 import bcrypt from 'bcryptjs';
-import { cryptoHelper } from './lib/crypto'; // We will create this next!
+import { cryptoHelper } from './lib/crypto';
+import { syncModelsWithUpstream } from './lib/modelsSync';
 
 async function main() {
   console.log('Seeding database started...');
 
   // 1. Seed Ollama Models dynamically from upstream if reachable
   try {
-    const { syncModelsWithUpstream } = require('./lib/modelsSync');
     await syncModelsWithUpstream();
   } catch (err) {
     console.warn('Failed to sync models from upstream during seed stage:', err);

@@ -77,11 +77,7 @@ export default function AdminModels() {
       // Wait, did we miss `GET /admin/models` in `admin.ts`?
       // Let's check: yes, we have `GET /branding` and `GET /admin/users` and `GET /admin/health` but no `GET /admin/models`!
       // We should definitely add `GET /api/admin/models` to retrieve the list of all models in the database (enabled and disabled) so that the admin page can display them all!
-      // This is a very important detail! Let's write the `GET /api/admin/models` route in `api/src/routes/admin.ts` right away using `replace_file_content`.
-      const res = await apiClient.get('/v1/models'); // Let's check: if we map it or write an admin route. Writing an admin route is much cleaner.
-      // Let's write the admin GET /admin/models endpoint in backend right now!
-      // Where should it go? Inside `adminSecured` block in `api/src/routes/admin.ts`.
-      // Let's fetch `/api/admin/models` in the React query.
+      // Fetch all models directly from the admin endpoint
       const response = await apiClient.get('/admin/models');
       return response.data;
     },

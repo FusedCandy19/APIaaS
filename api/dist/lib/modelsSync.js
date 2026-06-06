@@ -102,17 +102,6 @@ async function syncModelsWithUpstream() {
                     console.log(`[Sync] Registered new model from upstream: ${mId}`);
                 }
             }
-            // 2. Prune any catalog models no longer present in upstream
-            const deleteResult = await db_1.prisma.model.deleteMany({
-                where: {
-                    id: {
-                        notIn: upstreamModelIds,
-                    },
-                },
-            });
-            if (deleteResult.count > 0) {
-                console.log(`[Sync] Pruned ${deleteResult.count} obsolete model(s) from database catalog.`);
-            }
         }
         catch (dbErr) {
             console.error(`[Sync] Failed database update step: ${dbErr.message || dbErr}`);

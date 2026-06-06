@@ -6,13 +6,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const db_1 = require("./db");
 const config_1 = require("./config");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const crypto_1 = require("./lib/crypto"); // We will create this next!
+const crypto_1 = require("./lib/crypto");
+const modelsSync_1 = require("./lib/modelsSync");
 async function main() {
     console.log('Seeding database started...');
     // 1. Seed Ollama Models dynamically from upstream if reachable
     try {
-        const { syncModelsWithUpstream } = require('./lib/modelsSync');
-        await syncModelsWithUpstream();
+        await (0, modelsSync_1.syncModelsWithUpstream)();
     }
     catch (err) {
         console.warn('Failed to sync models from upstream during seed stage:', err);
