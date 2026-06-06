@@ -52,15 +52,26 @@ export default function Docs() {
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
+  const getApiBaseUrl = () => {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost') {
+      return 'https://localhost/v1';
+    }
+    const baseDomain = hostname.replace(/^(web|console|dashboard|admin)\./, '');
+    return `https://api.${baseDomain}/v1`;
+  };
+
   const getCodeSnippet = () => {
     const key = selectedKey === 'YOUR_API_KEY' ? 'sk_proj_xxxx_xxxxxxxxxxxx' : selectedKey;
+    const defaultModel = models.length > 0 ? models[0].id : 'gpt-4o';
+    const baseUrl = getApiBaseUrl();
     
     if (activeLang === 'curl') {
-      return `curl -X POST https://localhost/v1/chat/completions \\
+      return `curl -X POST ${baseUrl}/chat/completions \\
   -H "Authorization: Bearer ${key}" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "gpt-4o",
+    "model": "${defaultModel}",
     "messages": [
       {"role": "user", "content": "Hello, explain APIaaS in one sentence!"}
     ]
@@ -72,12 +83,12 @@ export default function Docs() {
 
 const openai = new OpenAI({
   apiKey: '${key}',
-  baseURL: 'https://localhost/v1'
+  baseURL: '${baseUrl}'
 });
 
 async function main() {
   const completion = await openai.chat.completions.create({
-    model: 'gpt-4o',
+    model: '${defaultModel}',
     messages: [
       { role: 'user', content: 'Hello, explain APIaaS in one sentence!' }
     ],
@@ -94,11 +105,11 @@ main();`;
 
 client = OpenAI(
     api_key="${key}",
-    base_url="https://localhost/v1"
+    base_url="${baseUrl}"
 )
 
 completion = client.chat.completions.create(
-    model="gpt-4o",
+    model="${defaultModel}",
     messages=[
         {"role": "user", "content": "Hello, explain APIaaS in one sentence!"}
     ]
@@ -285,8 +296,8 @@ print(completion.choices[0].message.content)`;
                   <tr key={m.id} className="hover:bg-zinc-900/20 text-zinc-300 transition-colors">
                     <td className="p-3 font-semibold text-white uppercase">{m.id}</td>
                     <td className="p-3 text-zinc-500 capitalize">{m.owned_by}</td>
-                    <td className="p-3 text-right font-mono text-zinc-400">${m.pricing.inputPricePerMillion.toFixed(2)}</td>
-                    <td className="p-3 text-right font-mono text-zinc-400">${m.pricing.outputPricePerMillion.toFixed(2)}</td>
+                    <td className="p-3 text-right font-mono text-zinc-400">${m.pricing.inputPricePerMillion.toFixed(4)}</td>
+                    <td className="p-3 text-right font-mono text-zinc-400">${m.pricing.outputPricePerMillion.toFixed(4)}</td>
                   </tr>
                 ))}
               </tbody>
