@@ -78,6 +78,9 @@ async function startServer() {
   await fastify.register(modelsRoutes, { prefix: '/v1' });
   await fastify.register(gatewayRoutes, { prefix: '/v1' });
 
+  // Also register models under /api/v1 prefix for same-origin dashboard proxy access
+  await fastify.register(modelsRoutes, { prefix: '/api/v1' });
+
   // 5. Global Error Handler
   fastify.setErrorHandler((error, request, reply) => {
     fastify.log.error(error);

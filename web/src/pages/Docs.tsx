@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import { apiClient } from '../api/client';
 import { useBrandingStore } from '../store/branding.store';
 import { 
@@ -50,11 +49,11 @@ export default function Docs() {
     },
   });
 
-  // Fetch models pricing (using raw axios to call the public /v1/models route dynamically)
+  // Fetch models pricing (using apiClient to call the public /api/v1/models route dynamically)
   const { data: modelsData } = useQuery<{ data: ModelInfo[] }>({
     queryKey: ['docsModelsList'],
     queryFn: async () => {
-      const res = await axios.get(`${baseUrl}/models`);
+      const res = await apiClient.get('/v1/models');
       return res.data;
     },
   });
