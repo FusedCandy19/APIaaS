@@ -1,0 +1,57 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: apiaas-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: apiaas
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: apiaas-api
+    ports:
+      - "443:443"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres123@db:5432/apiaas?schema=public
+      - JWT_SECRET=super-secret-jwt-key-change-in-production
+      - JWT_REFRESH_SECRET=super-secret-refresh-key-change-in-production
+      - PORT=443
+      - UPSTREAM_OPENAI_API_KEY=${UPSTREAM_OPENAI_API_KEY:-}
+      - UPSTREAM_OPENAI_API_BASE_URL=${UPSTREAM_OPENAI_API_BASE_URL:-https://api.openai.com/v1}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-adminpassword123}
+    volumes:
+      - certs:/certs
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: apiaas-web
+    ports:
+      - "8443:8443"
+    volumes:
+      - certs:/certs
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  certs:

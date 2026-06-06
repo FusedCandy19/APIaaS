@@ -1,0 +1,71 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  role          String         @default("user") // "user" | "admin"
+  plan          String         @default("free") // "free" | "pro" | "enterprise"
+  createdAt     DateTime       @default(now())
+  apiKeys       ApiKey[]
+  refreshTokens RefreshToken[]
+}
+
+model ApiKey {
+  id          String     @id @default(uuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  keyHash     String     @unique
+  keyPrefix   String     // e.g. "sk-proj-xxxx"
+  rateLimit   Int        @default(100) // requests per minute
+  status      String     @default("active") // "active" | "revoked"
+  createdAt   DateTime   @default(now())
+  lastUsedAt  DateTime?
+  usageLogs   UsageLog[]
+}
+
+model UsageLog {
+  id               String   @id @default(uuid())
+  apiKeyId         String
+  apiKey           ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  model            String
+  inputTokens      Int
+  outputTokens     Int
+  totalTokens      Int
+  costUsd          Float
+  createdAt        DateTime @default(now())
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Model {
+  id                    String   @id // e.g. "gpt-4o", "gpt-4-turbo", "claude-3-opus"
+  name                  String
+  inputPricePerMillion  Float
+  outputPricePerMillion Float
+  enabled               Boolean  @default(true)
+}
+
+model BrandingConfig {
+  id           Int      @id @default(1)
+  platformName String   @default("APIaaS")
+  accentColor  String   @default("#8b5cf6") // Hex format (violet-500)
+  logoUrl      String   @default("")
+  themePreset  String   @default("dark-violet") // "dark-violet" | "dark-amber" | "dark-teal" | "dark-rose"
+  supportEmail String   @default("support@example.com")
+}
