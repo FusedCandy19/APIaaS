@@ -34,6 +34,8 @@ services:
       - UPSTREAM_OPENAI_API_BASE_URL=${UPSTREAM_OPENAI_API_BASE_URL:-https://api.openai.com/v1}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-adminpassword123}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - certs:/certs
     depends_on:
