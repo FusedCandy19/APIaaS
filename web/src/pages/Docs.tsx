@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
+import { useBrandingStore } from '../store/branding.store';
 import { 
   BookOpen, 
   Terminal, 
@@ -46,6 +47,8 @@ export default function Docs() {
 
   const models = modelsData?.data || [];
 
+  const { settings } = useBrandingStore();
+
   const handleCopy = (code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedCode(true);
@@ -61,10 +64,11 @@ export default function Docs() {
     return `https://api.${baseDomain}/v1`;
   };
 
+  const baseUrl = getApiBaseUrl();
+
   const getCodeSnippet = () => {
     const key = selectedKey === 'YOUR_API_KEY' ? 'sk_proj_xxxx_xxxxxxxxxxxx' : selectedKey;
     const defaultModel = models.length > 0 ? models[0].id : 'gpt-4o';
-    const baseUrl = getApiBaseUrl();
     
     if (activeLang === 'curl') {
       return `curl -X POST ${baseUrl}/chat/completions \\
@@ -73,7 +77,7 @@ export default function Docs() {
   -d '{
     "model": "${defaultModel}",
     "messages": [
-      {"role": "user", "content": "Hello, explain APIaaS in one sentence!"}
+      {"role": "user", "content": "Hello, explain ${settings.platformName} in one sentence!"}
     ]
   }'`;
     }
@@ -90,7 +94,7 @@ async function main() {
   const completion = await openai.chat.completions.create({
     model: '${defaultModel}',
     messages: [
-      { role: 'user', content: 'Hello, explain APIaaS in one sentence!' }
+      { role: 'user', content: 'Hello, explain ${settings.platformName} in one sentence!' }
     ],
   });
 
@@ -111,7 +115,7 @@ client = OpenAI(
 completion = client.chat.completions.create(
     model="${defaultModel}",
     messages=[
-        {"role": "user", "content": "Hello, explain APIaaS in one sentence!"}
+        {"role": "user", "content": "Hello, explain ${settings.platformName} in one sentence!"}
     ]
 )
 
@@ -192,7 +196,7 @@ print(completion.choices[0].message.content)`;
                 <span className="px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[9px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
                   POST
                 </span>
-                <span className="font-mono text-white font-semibold">https://localhost/v1/chat/completions</span>
+                <span className="font-mono text-white font-semibold">{baseUrl}/chat/completions</span>
               </div>
               <p className="text-zinc-500 text-[11px] leading-relaxed">
                 Creates a completion for the chat message logs. Supports streaming response configurations.
@@ -204,7 +208,7 @@ print(completion.choices[0].message.content)`;
                 <span className="px-2 py-0.5 rounded font-bold uppercase tracking-wider text-[9px] bg-blue-500/10 border border-blue-500/20 text-blue-400">
                   GET
                 </span>
-                <span className="font-mono text-white font-semibold">https://localhost/v1/models</span>
+                <span className="font-mono text-white font-semibold">{baseUrl}/models</span>
               </div>
               <p className="text-zinc-500 text-[11px] leading-relaxed">
                 Returns a list of supported and enabled LLM models, along with pricing metadata.
