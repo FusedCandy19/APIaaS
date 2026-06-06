@@ -13,6 +13,7 @@ import Usage from './pages/Usage';
 import Billing from './pages/Billing';
 import Settings from './pages/Settings';
 import Docs from './pages/Docs';
+import Models from './pages/Models';
 
 // Admin Pages
 import AdminDashboard from './pages/Admin/Dashboard';
@@ -72,6 +73,7 @@ const AppLayout = () => {
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, role: 'all' },
     { name: 'API Keys', path: '/keys', icon: Key, role: 'all' },
+    { name: 'Models & Pricing', path: '/models', icon: Cpu, role: 'all' },
     { name: 'Usage', path: '/usage', icon: BarChart3, role: 'all' },
     { name: 'Billing', path: '/billing', icon: CreditCard, role: 'all' },
     { name: 'Settings', path: '/settings', icon: Settings2, role: 'all' },
@@ -215,6 +217,7 @@ const AppLayout = () => {
           <Routes>
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/keys" element={<ProtectedRoute><Keys /></ProtectedRoute>} />
+            <Route path="/models" element={<ProtectedRoute><Models /></ProtectedRoute>} />
             <Route path="/usage" element={<ProtectedRoute><Usage /></ProtectedRoute>} />
             <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
