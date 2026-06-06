@@ -1,7 +1,7 @@
 FROM node:20-alpine
 
 # Install openssl for cert generation
-RUN apk add --no-repeat --no-cache openssl
+RUN apk add --no-cache openssl
 
 WORKDIR /app
 
