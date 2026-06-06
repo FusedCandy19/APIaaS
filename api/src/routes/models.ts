@@ -1,9 +1,12 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../db';
+import { syncModelsWithUpstream } from '../lib/modelsSync';
 
 export async function modelsRoutes(fastify: FastifyInstance) {
   // GET /v1/models - Public endpoint to retrieve models (OpenAI format + pricing metadata)
   fastify.get('/models', async (request: FastifyRequest, reply: FastifyReply) => {
+    await syncModelsWithUpstream();
+
     const dbModels = await prisma.model.findMany({
       where: { enabled: true },
     });

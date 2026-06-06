@@ -8,6 +8,7 @@ const zod_1 = require("zod");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const db_1 = require("../db");
 const auth_1 = require("../middleware/auth");
+const modelsSync_1 = require("../lib/modelsSync");
 const createUserSchema = zod_1.z.object({
     email: zod_1.z.string().email(),
     password: zod_1.z.string().min(6),
@@ -288,6 +289,7 @@ async function adminRoutes(fastify) {
         });
         // 10. GET /admin/models - Retrieve all models (including disabled)
         adminSecured.get('/admin/models', async (request, reply) => {
+            await (0, modelsSync_1.syncModelsWithUpstream)();
             const models = await db_1.prisma.model.findMany({
                 orderBy: { id: 'asc' },
             });

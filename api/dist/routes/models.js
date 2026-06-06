@@ -2,9 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.modelsRoutes = modelsRoutes;
 const db_1 = require("../db");
+const modelsSync_1 = require("../lib/modelsSync");
 async function modelsRoutes(fastify) {
     // GET /v1/models - Public endpoint to retrieve models (OpenAI format + pricing metadata)
     fastify.get('/models', async (request, reply) => {
+        await (0, modelsSync_1.syncModelsWithUpstream)();
         const dbModels = await db_1.prisma.model.findMany({
             where: { enabled: true },
         });

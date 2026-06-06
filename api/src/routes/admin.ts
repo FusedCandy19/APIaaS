@@ -3,6 +3,7 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../db';
 import { requireAdmin } from '../middleware/auth';
+import { syncModelsWithUpstream } from '../lib/modelsSync';
 
 const createUserSchema = z.object({
   email: z.string().email(),
@@ -331,6 +332,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
     // 10. GET /admin/models - Retrieve all models (including disabled)
     adminSecured.get('/admin/models', async (request: FastifyRequest, reply: FastifyReply) => {
+      await syncModelsWithUpstream();
       const models = await prisma.model.findMany({
         orderBy: { id: 'asc' },
       });

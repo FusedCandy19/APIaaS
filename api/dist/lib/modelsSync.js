@@ -1,0 +1,73 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.syncModelsWithUpstream = syncModelsWithUpstream;
+const config_1 = require("../config");
+const db_1 = require("../db");
+async function syncModelsWithUpstream() {
+    // If no upstream provider key/base configured, skip sync (run in simulator mode)
+    if (!config_1.config.UPSTREAM_OPENAI_API_KEY) {
+        return;
+    }
+    try {
+        const upstreamUrl = `${config_1.config.UPSTREAM_OPENAI_API_BASE_URL}/models`;
+        console.log(`[Sync] Querying upstream models at: ${upstreamUrl}...`);
+        const headers = {
+            'Accept': 'application/json',
+        };
+        // Only pass Bearer authentication if a real key is present (skip for 'ollama')
+        if (config_1.config.UPSTREAM_OPENAI_API_KEY && config_1.config.UPSTREAM_OPENAI_API_KEY !== 'ollama') {
+            headers['Authorization'] = `Bearer ${config_1.config.UPSTREAM_OPENAI_API_KEY}`;
+        }
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3-second network timeout
+        const res = await fetch(upstreamUrl, {
+            method: 'GET',
+            headers,
+            signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+            console.warn(`[Sync] Upstream returned status ${res.status}`);
+            return;
+        }
+        const data = await res.json();
+        if (data && Array.isArray(data.data)) {
+            const upstreamModelIds = data.data.map((m) => m.id);
+            console.log(`[Sync] Active upstream models:`, upstreamModelIds);
+            // 1. Register new models from the upstream registry
+            for (const mId of upstreamModelIds) {
+                const existing = await db_1.prisma.model.findUnique({ where: { id: mId } });
+                if (!existing) {
+                    // Pretty name extraction (e.g. "gemma4" from "gemma4:e4b")
+                    const cleanName = mId.includes(':')
+                        ? mId.split(':')[0].charAt(0).toUpperCase() + mId.split(':')[0].slice(1)
+                        : mId;
+                    await db_1.prisma.model.create({
+                        data: {
+                            id: mId,
+                            name: cleanName,
+                            inputPricePerMillion: 0.0,
+                            outputPricePerMillion: 0.0,
+                            enabled: true,
+                        },
+                    });
+                    console.log(`[Sync] Registered new model from upstream: ${mId}`);
+                }
+            }
+            // 2. Clear any database model catalog records that are no longer installed upstream
+            const deleteResult = await db_1.prisma.model.deleteMany({
+                where: {
+                    id: {
+                        notIn: upstreamModelIds,
+                    },
+                },
+            });
+            if (deleteResult.count > 0) {
+                console.log(`[Sync] Removed ${deleteResult.count} obsolete model(s) from database catalog.`);
+            }
+        }
+    }
+    catch (err) {
+        console.error(`[Sync] Failed to sync models with upstream: ${err.message || err}`);
+    }
+}
