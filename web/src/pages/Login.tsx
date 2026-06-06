@@ -135,21 +135,6 @@ export default function Login() {
             </p>
           </div>
         </div>
-
-        {/* Demo instructions */}
-        <div className="p-4 rounded-xl border border-zinc-800/60 bg-zinc-900/30 text-center text-xs text-zinc-500 space-y-1">
-          <p>💡 Quick access accounts seeded automatically:</p>
-          <div className="grid grid-cols-2 gap-2 mt-2 font-mono">
-            <div className="bg-zinc-950/40 p-2 rounded border border-zinc-800/40">
-              <span className="text-zinc-400 block font-semibold">User Dashboard</span>
-              demo@example.com / demo123
-            </div>
-            <div className="bg-zinc-950/40 p-2 rounded border border-zinc-800/40">
-              <span className="text-zinc-400 block font-semibold">Admin Panel</span>
-              admin@example.com / admin123
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

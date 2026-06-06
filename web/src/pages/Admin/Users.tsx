@@ -47,6 +47,38 @@ export default function AdminUsers() {
   const [newStatus, setNewStatus] = useState<'active' | 'pending' | 'suspended'>('active');
   const [createError, setCreateError] = useState<string | null>(null);
 
+  // Reset Password Modal States
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [resetUserId, setResetUserId] = useState('');
+  const [resetUserEmail, setResetUserEmail] = useState('');
+  const [resetPasswordVal, setResetPasswordVal] = useState('');
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+
+  // Reset password mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: async () => {
+      setResetError(null);
+      setResetSuccess(null);
+      const res = await apiClient.post(`/admin/users/${resetUserId}/reset-password`, {
+        password: resetPasswordVal,
+      });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      setResetSuccess(data.message || 'Password updated successfully.');
+      setResetPasswordVal('');
+      // Dismiss after 2 seconds
+      setTimeout(() => {
+        setResetModalOpen(false);
+        setResetSuccess(null);
+      }, 2000);
+    },
+    onError: (err: any) => {
+      setResetError(err.response?.data?.message || 'Failed to reset user password.');
+    }
+  });
+
   // Fetch users report
   const { data: users = [], isLoading, refetch, isFetching } = useQuery<UserReportItem[]>({
     queryKey: ['adminUsersList'],
@@ -115,6 +147,15 @@ export default function AdminUsers() {
       id: userId,
       data: { status: newStatus },
     });
+  };
+
+  const handleOpenResetModal = (id: string, email: string) => {
+    setResetUserId(id);
+    setResetUserEmail(email);
+    setResetPasswordVal('');
+    setResetError(null);
+    setResetSuccess(null);
+    setResetModalOpen(true);
   };
 
   const filteredUsers = users.filter((u) => {
@@ -222,6 +263,7 @@ export default function AdminUsers() {
                   <th className="p-4">Tier Plan</th>
                   <th className="p-4">Role Scope</th>
                   <th className="p-4">Status Override</th>
+                  <th className="p-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-850">
@@ -280,6 +322,16 @@ export default function AdminUsers() {
                         <option value="pending" className="bg-zinc-900 text-amber-400">Pending</option>
                         <option value="suspended" className="bg-zinc-900 text-red-400">Suspended</option>
                       </select>
+                    </td>
+                    <td className="p-4 text-right">
+                      <button
+                        onClick={() => handleOpenResetModal(user.id, user.email)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-zinc-950 border border-zinc-800 text-[10px] font-bold uppercase tracking-wider text-amber-500 hover:text-amber-400 hover:bg-zinc-900 rounded transition-all focus:outline-none"
+                        title="Reset User Password"
+                      >
+                        <KeyRound size={11} className="shrink-0" />
+                        Reset Pass
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -406,6 +458,79 @@ export default function AdminUsers() {
                   className="flex-1 py-2 bg-brand hover:bg-brand-hover text-brand-foreground text-xs font-semibold rounded-lg transition-all"
                 >
                   {createUserMutation.isPending ? 'Registering...' : 'Register User'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* RESET PASSWORD DIALOG MODAL */}
+      {resetModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="space-y-1">
+              <h3 className="font-display font-bold text-lg text-white">Reset Password</h3>
+              <p className="text-xs text-zinc-500">
+                Override security credentials for developer: <strong className="text-zinc-300">{resetUserEmail}</strong>
+              </p>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                resetPasswordMutation.mutate();
+              }}
+              className="space-y-4"
+            >
+              {resetError && (
+                <div className="flex items-center gap-2.5 p-3 rounded-lg border border-red-500/20 bg-red-500/10 text-red-400 text-xs">
+                  <AlertCircle size={16} />
+                  <span>{resetError}</span>
+                </div>
+              )}
+
+              {resetSuccess && (
+                <div className="flex items-center gap-2.5 p-3 rounded-lg border border-green-500/20 bg-green-500/10 text-green-400 text-xs">
+                  <CheckCircle size={16} />
+                  <span>{resetSuccess}</span>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-450">
+                  New Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
+                    <KeyRound size={14} />
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={resetPasswordVal}
+                    onChange={(e) => setResetPasswordVal(e.target.value)}
+                    placeholder="Min. 6 characters"
+                    className="w-full pl-9 pr-4 py-2 rounded-lg border border-zinc-855 bg-zinc-950 text-sm focus:outline-none focus:border-brand text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setResetModalOpen(false)}
+                  className="flex-1 py-2 text-xs font-semibold border border-zinc-800 bg-zinc-950 hover:bg-zinc-900 rounded-lg text-zinc-400"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={resetPasswordMutation.isPending}
+                  className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-black text-xs font-semibold rounded-lg transition-all"
+                >
+                  {resetPasswordMutation.isPending ? 'Updating...' : 'Save Password'}
                 </button>
               </div>
             </form>

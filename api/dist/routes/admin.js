@@ -39,6 +39,9 @@ const updateUserSchema = zod_1.z.object({
     role: zod_1.z.enum(['user', 'admin']).optional(),
     status: zod_1.z.enum(['active', 'pending', 'suspended']).optional(),
 });
+const resetPasswordSchema = zod_1.z.object({
+    password: zod_1.z.string().min(6, 'Password must be at least 6 characters'),
+});
 async function adminRoutes(fastify) {
     // --- PUBLIC ENDPOINTS ---
     // 1. GET /branding - Public branding data loaded at app startup
@@ -231,7 +234,26 @@ async function adminRoutes(fastify) {
             });
             return reply.status(201).send(user);
         });
-        // 9. GET /admin/logs - Retrieve global platform transaction logs
+        // 9. POST /admin/users/:id/reset-password - Reset user password
+        adminSecured.post('/admin/users/:id/reset-password', async (request, reply) => {
+            const { id } = request.params;
+            const parsed = resetPasswordSchema.safeParse(request.body);
+            if (!parsed.success) {
+                return reply.status(400).send({ error: 'Validation Error', details: parsed.error.format() });
+            }
+            const { password } = parsed.data;
+            const user = await db_1.prisma.user.findUnique({ where: { id } });
+            if (!user) {
+                return reply.status(404).send({ error: 'Not Found', message: 'User not found.' });
+            }
+            const passwordHash = await bcryptjs_1.default.hash(password, 10);
+            await db_1.prisma.user.update({
+                where: { id },
+                data: { passwordHash },
+            });
+            return reply.send({ success: true, message: 'User password reset successful.' });
+        });
+        // 10. GET /admin/logs - Retrieve global platform transaction logs
         adminSecured.get('/admin/logs', async (request, reply) => {
             const logs = await db_1.prisma.usageLog.findMany({
                 orderBy: { createdAt: 'desc' },

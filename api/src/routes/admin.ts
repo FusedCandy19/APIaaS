@@ -40,6 +40,10 @@ const updateUserSchema = z.object({
   status: z.enum(['active', 'pending', 'suspended']).optional(),
 });
 
+const resetPasswordSchema = z.object({
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
 export async function adminRoutes(fastify: FastifyInstance) {
   // --- PUBLIC ENDPOINTS ---
   
@@ -265,7 +269,31 @@ export async function adminRoutes(fastify: FastifyInstance) {
       return reply.status(201).send(user);
     });
 
-    // 9. GET /admin/logs - Retrieve global platform transaction logs
+    // 9. POST /admin/users/:id/reset-password - Reset user password
+    adminSecured.post('/admin/users/:id/reset-password', async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      const parsed = resetPasswordSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'Validation Error', details: parsed.error.format() });
+      }
+
+      const { password } = parsed.data;
+
+      const user = await prisma.user.findUnique({ where: { id } });
+      if (!user) {
+        return reply.status(404).send({ error: 'Not Found', message: 'User not found.' });
+      }
+
+      const passwordHash = await bcrypt.hash(password, 10);
+      await prisma.user.update({
+        where: { id },
+        data: { passwordHash },
+      });
+
+      return reply.send({ success: true, message: 'User password reset successful.' });
+    });
+
+    // 10. GET /admin/logs - Retrieve global platform transaction logs
     adminSecured.get('/admin/logs', async (request: FastifyRequest, reply: FastifyReply) => {
       const logs = await prisma.usageLog.findMany({
         orderBy: { createdAt: 'desc' },
