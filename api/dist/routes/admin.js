@@ -289,7 +289,12 @@ async function adminRoutes(fastify) {
         });
         // 10. GET /admin/models - Retrieve all models (including disabled)
         adminSecured.get('/admin/models', async (request, reply) => {
-            await (0, modelsSync_1.syncModelsWithUpstream)();
+            try {
+                await (0, modelsSync_1.syncModelsWithUpstream)();
+            }
+            catch (err) {
+                request.log.error(err, 'Failed to sync models with upstream');
+            }
             const models = await db_1.prisma.model.findMany({
                 orderBy: { id: 'asc' },
             });

@@ -6,7 +6,12 @@ const modelsSync_1 = require("../lib/modelsSync");
 async function modelsRoutes(fastify) {
     // GET /v1/models - Public endpoint to retrieve models (OpenAI format + pricing metadata)
     fastify.get('/models', async (request, reply) => {
-        await (0, modelsSync_1.syncModelsWithUpstream)();
+        try {
+            await (0, modelsSync_1.syncModelsWithUpstream)();
+        }
+        catch (err) {
+            fastify.log.error(err, 'Failed to sync models with upstream');
+        }
         const dbModels = await db_1.prisma.model.findMany({
             where: { enabled: true },
         });
