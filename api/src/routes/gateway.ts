@@ -132,6 +132,67 @@ export async function gatewayRoutes(fastify: FastifyInstance) {
           return reply.status(response.status).send(errData);
         }
 
+        // Handle streaming response if requested
+        if (body.stream) {
+          reply.raw.writeHead(response.status, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': request.headers.origin || '*',
+            'Access-Control-Allow-Credentials': 'true',
+          });
+
+          const decoder = new TextDecoder();
+          let accumulatedResponse = '';
+
+          try {
+            for await (const chunk of response.body as any) {
+              reply.raw.write(chunk);
+              const text = decoder.decode(chunk, { stream: true });
+              accumulatedResponse += text;
+            }
+          } catch (streamErr) {
+            console.error('Error during streaming:', streamErr);
+          } finally {
+            reply.raw.end();
+            
+            // Calculate and log token usage after stream completes
+            let outputText = '';
+            const lines = accumulatedResponse.split('\n');
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed || trimmed === 'data: [DONE]') continue;
+              if (trimmed.startsWith('data: ')) {
+                try {
+                  const json = JSON.parse(trimmed.slice(6));
+                  const content = json.choices?.[0]?.delta?.content || '';
+                  outputText += content;
+                } catch (e) {
+                  // Ignore parse errors for incomplete/control chunks
+                }
+              }
+            }
+
+            const inputTokens = Math.max(1, Math.ceil(body.messages.map(m => m.content).join(' ').length / 4));
+            const outputTokens = Math.max(1, Math.ceil(outputText.length / 4));
+            const totalTokens = inputTokens + outputTokens;
+            const costUsd = (inputTokens / 1000000) * modelRecord.inputPricePerMillion +
+                            (outputTokens / 1000000) * modelRecord.outputPricePerMillion;
+
+            await prisma.usageLog.create({
+              data: {
+                apiKeyId: apiKeyRecord.id,
+                model: requestedModelId,
+                inputTokens,
+                outputTokens,
+                totalTokens,
+                costUsd,
+              },
+            }).catch(e => console.error('Failed to log streamed usage:', e));
+          }
+          return;
+        }
+
         const data = await response.json() as any;
 
         // Extract usage metrics
