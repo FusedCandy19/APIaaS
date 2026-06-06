@@ -234,7 +234,10 @@ export default function Dashboard() {
                   stroke="#52525b" 
                   fontSize={10}
                   tickFormatter={(val) => {
-                    const d = new Date(val);
+                    if (!val) return '';
+                    const parts = val.split('-');
+                    if (parts.length !== 3) return val;
+                    const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
                     return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
                   }}
                 />
