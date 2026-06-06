@@ -71,6 +71,15 @@ export async function authRoutes(fastify: FastifyInstance) {
       return reply.status(401).send({ error: 'Unauthorized', message: 'Invalid email or password' });
     }
 
+    // Enforce account status restrictions
+    if (user.status === 'pending') {
+      return reply.status(403).send({ error: 'Forbidden', message: 'Your account is pending admin approval.' });
+    }
+
+    if (user.status === 'suspended') {
+      return reply.status(403).send({ error: 'Forbidden', message: 'Your account has been suspended.' });
+    }
+
     // Generate tokens
     const accessToken = fastify.jwt.sign(
       { id: user.id, email: user.email, role: user.role },

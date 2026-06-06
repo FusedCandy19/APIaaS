@@ -13,6 +13,7 @@ model User {
   passwordHash  String
   role          String         @default("user") // "user" | "admin"
   plan          String         @default("free") // "free" | "pro" | "enterprise"
+  status        String         @default("active") // "active" | "pending" | "suspended"
   createdAt     DateTime       @default(now())
   apiKeys       ApiKey[]
   refreshTokens RefreshToken[]

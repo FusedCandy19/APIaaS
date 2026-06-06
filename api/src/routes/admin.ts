@@ -1,7 +1,24 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import bcrypt from 'bcryptjs';
 import { prisma } from '../db';
 import { requireAdmin } from '../middleware/auth';
+
+const createUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+  role: z.enum(['user', 'admin']).default('user'),
+  plan: z.enum(['free', 'pro', 'enterprise']).default('free'),
+  status: z.enum(['active', 'pending', 'suspended']).default('active'),
+});
+
+const createModelSchema = z.object({
+  id: z.string().min(1, 'Model ID is required'),
+  name: z.string().min(1, 'Model name is required'),
+  inputPricePerMillion: z.number().min(0),
+  outputPricePerMillion: z.number().min(0),
+  enabled: z.boolean().default(true),
+});
 
 const updateModelSchema = z.object({
   inputPricePerMillion: z.number().min(0).optional(),
@@ -20,6 +37,7 @@ const updateBrandingSchema = z.object({
 const updateUserSchema = z.object({
   plan: z.enum(['free', 'pro', 'enterprise']).optional(),
   role: z.enum(['user', 'admin']).optional(),
+  status: z.enum(['active', 'pending', 'suspended']).optional(),
 });
 
 export async function adminRoutes(fastify: FastifyInstance) {
@@ -209,6 +227,127 @@ export async function adminRoutes(fastify: FastifyInstance) {
           heapTotalMB: Math.round(memoryUsage.heapTotal / 1024 / 1024),
         },
       });
+    });
+
+    // 8. POST /admin/users - Create a new user account directly
+    adminSecured.post('/admin/users', async (request: FastifyRequest, reply: FastifyReply) => {
+      const parsed = createUserSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'Validation Error', details: parsed.error.format() });
+      }
+
+      const { email, password, role, plan, status } = parsed.data;
+
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing) {
+        return reply.status(409).send({ error: 'Conflict', message: 'Email already registered.' });
+      }
+
+      const passwordHash = await bcrypt.hash(password, 10);
+      const user = await prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          role,
+          plan,
+          status,
+        },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          plan: true,
+          status: true,
+          createdAt: true,
+        },
+      });
+
+      return reply.status(201).send(user);
+    });
+
+    // 9. GET /admin/logs - Retrieve global platform transaction logs
+    adminSecured.get('/admin/logs', async (request: FastifyRequest, reply: FastifyReply) => {
+      const logs = await prisma.usageLog.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 100, // Show last 100 entries
+        include: {
+          apiKey: {
+            select: {
+              name: true,
+              keyPrefix: true,
+              user: {
+                select: {
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const formatted = logs.map((log) => ({
+        id: log.id,
+        model: log.model,
+        inputTokens: log.inputTokens,
+        outputTokens: log.outputTokens,
+        totalTokens: log.totalTokens,
+        costUsd: log.costUsd,
+        createdAt: log.createdAt,
+        keyName: log.apiKey?.name || 'Deleted Key',
+        keyPrefix: log.apiKey?.keyPrefix || 'N/A',
+        userEmail: log.apiKey?.user?.email || 'System / Orphaned',
+      }));
+
+      return reply.send(formatted);
+    });
+
+    // 10. GET /admin/models - Retrieve all models (including disabled)
+    adminSecured.get('/admin/models', async (request: FastifyRequest, reply: FastifyReply) => {
+      const models = await prisma.model.findMany({
+        orderBy: { id: 'asc' },
+      });
+      return reply.send(models);
+    });
+
+    // 11. POST /admin/models - Register a new AI model in catalog
+    adminSecured.post('/admin/models', async (request: FastifyRequest, reply: FastifyReply) => {
+      const parsed = createModelSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'Validation Error', details: parsed.error.format() });
+      }
+
+      const { id, name, inputPricePerMillion, outputPricePerMillion, enabled } = parsed.data;
+
+      const existing = await prisma.model.findUnique({ where: { id } });
+      if (existing) {
+        return reply.status(409).send({ error: 'Conflict', message: 'Model ID already exists.' });
+      }
+
+      const model = await prisma.model.create({
+        data: {
+          id,
+          name,
+          inputPricePerMillion,
+          outputPricePerMillion,
+          enabled,
+        },
+      });
+
+      return reply.status(201).send(model);
+    });
+
+    // 11. DELETE /admin/models/:id - Deregister a model configuration
+    adminSecured.delete('/admin/models/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+
+      const model = await prisma.model.findUnique({ where: { id } });
+      if (!model) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Model configuration not found.' });
+      }
+
+      await prisma.model.delete({ where: { id } });
+
+      return reply.send({ success: true, message: `Model '${id}' successfully deleted.` });
     });
   });
 }

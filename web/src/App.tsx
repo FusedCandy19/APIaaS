@@ -19,6 +19,8 @@ import AdminDashboard from './pages/Admin/Dashboard';
 import AdminUsers from './pages/Admin/Users';
 import AdminBranding from './pages/Admin/Branding';
 import AdminHealth from './pages/Admin/Health';
+import AdminModels from './pages/Admin/Models';
+import AdminLogs from './pages/Admin/Logs';
 
 // Icons
 import { 
@@ -36,7 +38,8 @@ import {
   Menu,
   X,
   User as UserIcon,
-  ChevronRight
+  ChevronRight,
+  Cpu
 } from 'lucide-react';
 
 const queryClient = new QueryClient();
@@ -78,6 +81,8 @@ const AppLayout = () => {
   const adminNavItems = [
     { name: 'Admin Summary', path: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Users List', path: '/admin/users', icon: Users },
+    { name: 'Model Catalog', path: '/admin/models', icon: Cpu },
+    { name: 'Platform Logs', path: '/admin/logs', icon: BookOpen },
     { name: 'Branding Theme', path: '/admin/branding', icon: Palette },
     { name: 'System Health', path: '/admin/health', icon: Activity },
   ];
@@ -218,6 +223,8 @@ const AppLayout = () => {
             {/* Admin console routes */}
             <Route path="/admin/dashboard" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute requireAdmin><AdminUsers /></ProtectedRoute>} />
+            <Route path="/admin/models" element={<ProtectedRoute requireAdmin><AdminModels /></ProtectedRoute>} />
+            <Route path="/admin/logs" element={<ProtectedRoute requireAdmin><AdminLogs /></ProtectedRoute>} />
             <Route path="/admin/branding" element={<ProtectedRoute requireAdmin><AdminBranding /></ProtectedRoute>} />
             <Route path="/admin/health" element={<ProtectedRoute requireAdmin><AdminHealth /></ProtectedRoute>} />
 
