@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '../store/auth.store';
 import { apiClient } from '../api/client';
@@ -39,14 +39,17 @@ export default function Settings() {
   // Fetch full profile info
   const { data: profile } = useQuery<ProfileData>({
     queryKey: ['userProfile'],
-    queryFn: async () => {
+    queryFn: async (): Promise<ProfileData> => {
       const res = await apiClient.get('/v1/settings/profile');
       return res.data;
     },
-    onSuccess: (data) => {
-      setEmail(data.email);
-    },
   });
+
+  useEffect(() => {
+    if (profile) {
+      setEmail(profile.email);
+    }
+  }, [profile]);
 
   // Profile Mutation
   const profileMutation = useMutation({
