@@ -24,8 +24,8 @@ export async function usageRoutes(fastify: FastifyInstance) {
     // Default to last 7 days if not provided
     const now = new Date();
     const defaultStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const start = startDate ? new Date(startDate) : defaultStart;
-    const end = endDate ? new Date(endDate) : now;
+    const start = startDate ? new Date(`${startDate}T00:00:00.000Z`) : defaultStart;
+    const end = endDate ? new Date(`${endDate}T23:59:59.999Z`) : now;
 
     // Fetch matching logs
     const logs = await prisma.usageLog.findMany({
@@ -52,15 +52,10 @@ export async function usageRoutes(fastify: FastifyInstance) {
     
     // Pre-populate all days in range to avoid empty gaps in graphs
     let current = new Date(start);
-    while (current <= end) {
+    while (current.getTime() <= end.getTime()) {
       const dayStr = current.toISOString().slice(0, 10);
       dailyMap.set(dayStr, { date: dayStr, requests: 0, tokens: 0, cost: 0 });
-      current.setDate(current.getDate() + 1);
-    }
-    // Also make sure to add the last date in case of rounding
-    const endStr = end.toISOString().slice(0, 10);
-    if (!dailyMap.has(endStr)) {
-      dailyMap.set(endStr, { date: endStr, requests: 0, tokens: 0, cost: 0 });
+      current.setUTCDate(current.getUTCDate() + 1);
     }
 
     // Populate data
