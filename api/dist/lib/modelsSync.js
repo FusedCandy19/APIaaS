@@ -4,41 +4,89 @@ exports.syncModelsWithUpstream = syncModelsWithUpstream;
 const config_1 = require("../config");
 const db_1 = require("../db");
 async function syncModelsWithUpstream() {
-    // If no upstream provider key/base configured, skip sync (run in simulator mode)
     if (!config_1.config.UPSTREAM_OPENAI_API_KEY) {
+        console.log('[Sync] No UPSTREAM_OPENAI_API_KEY configured. Skipping model catalog sync (running in simulation mode).');
         return;
     }
-    try {
-        const upstreamUrl = `${config_1.config.UPSTREAM_OPENAI_API_BASE_URL}/models`;
-        console.log(`[Sync] Querying upstream models at: ${upstreamUrl}...`);
-        const headers = {
-            'Accept': 'application/json',
-        };
-        // Only pass Bearer authentication if a real key is present (skip for 'ollama')
-        if (config_1.config.UPSTREAM_OPENAI_API_KEY && config_1.config.UPSTREAM_OPENAI_API_KEY !== 'ollama') {
-            headers['Authorization'] = `Bearer ${config_1.config.UPSTREAM_OPENAI_API_KEY}`;
+    const cleanBase = config_1.config.UPSTREAM_OPENAI_API_BASE_URL.replace(/\/+$/, '');
+    const isOllama = config_1.config.UPSTREAM_OPENAI_API_KEY === 'ollama' || cleanBase.includes('11434');
+    let upstreamModelIds = [];
+    // Strategy 1: If using Ollama, query native tags endpoint first
+    if (isOllama) {
+        try {
+            // Reconstruct Ollama native tags URL (e.g. "http://host.docker.internal:11434/api/tags")
+            const nativeUrl = cleanBase.replace(/\/v1\/?$/, '') + '/api/tags';
+            console.log(`[Sync] Querying Ollama native tags at: ${nativeUrl}`);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000); // 4-second timeout
+            const res = await fetch(nativeUrl, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' },
+                signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && Array.isArray(data.models)) {
+                    upstreamModelIds = data.models.map((m) => m.name);
+                    console.log(`[Sync] Found ${upstreamModelIds.length} models from Ollama native tags:`, upstreamModelIds);
+                }
+                else {
+                    console.warn(`[Sync] Ollama native tags returned non-standard payload:`, data);
+                }
+            }
+            else {
+                console.warn(`[Sync] Ollama native tags check failed with status: ${res.status}`);
+            }
         }
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3-second network timeout
-        const res = await fetch(upstreamUrl, {
-            method: 'GET',
-            headers,
-            signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        if (!res.ok) {
-            console.warn(`[Sync] Upstream returned status ${res.status}`);
-            return;
+        catch (err) {
+            console.warn(`[Sync] Ollama native tags strategy failed (attempting standard backup): ${err.message || err}`);
         }
-        const data = await res.json();
-        if (data && Array.isArray(data.data)) {
-            const upstreamModelIds = data.data.map((m) => m.id);
-            console.log(`[Sync] Active upstream models:`, upstreamModelIds);
-            // 1. Register new models from the upstream registry
+    }
+    // Strategy 2: Fallback to standard OpenAI-compatible /v1/models list
+    if (upstreamModelIds.length === 0) {
+        try {
+            const upstreamUrl = `${cleanBase}/models`;
+            console.log(`[Sync] Querying standard /v1/models at: ${upstreamUrl}`);
+            const headers = {
+                'Accept': 'application/json',
+            };
+            if (config_1.config.UPSTREAM_OPENAI_API_KEY && config_1.config.UPSTREAM_OPENAI_API_KEY !== 'ollama') {
+                headers['Authorization'] = `Bearer ${config_1.config.UPSTREAM_OPENAI_API_KEY}`;
+            }
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000); // 4-second timeout
+            const res = await fetch(upstreamUrl, {
+                method: 'GET',
+                headers,
+                signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && Array.isArray(data.data)) {
+                    upstreamModelIds = data.data.map((m) => m.id);
+                    console.log(`[Sync] Found ${upstreamModelIds.length} models from /v1/models:`, upstreamModelIds);
+                }
+                else {
+                    console.warn(`[Sync] Standard models check returned non-standard payload:`, data);
+                }
+            }
+            else {
+                console.warn(`[Sync] Standard models check failed with status: ${res.status}`);
+            }
+        }
+        catch (err) {
+            console.error(`[Sync] Standard models strategy failed: ${err.message || err}`);
+        }
+    }
+    // Process sync if we successfully fetched model ids
+    if (upstreamModelIds.length > 0) {
+        try {
+            // 1. Add/update database models in catalog
             for (const mId of upstreamModelIds) {
                 const existing = await db_1.prisma.model.findUnique({ where: { id: mId } });
                 if (!existing) {
-                    // Pretty name extraction (e.g. "gemma4" from "gemma4:e4b")
                     const cleanName = mId.includes(':')
                         ? mId.split(':')[0].charAt(0).toUpperCase() + mId.split(':')[0].slice(1)
                         : mId;
@@ -54,7 +102,7 @@ async function syncModelsWithUpstream() {
                     console.log(`[Sync] Registered new model from upstream: ${mId}`);
                 }
             }
-            // 2. Clear any database model catalog records that are no longer installed upstream
+            // 2. Prune any catalog models no longer present in upstream
             const deleteResult = await db_1.prisma.model.deleteMany({
                 where: {
                     id: {
@@ -63,11 +111,14 @@ async function syncModelsWithUpstream() {
                 },
             });
             if (deleteResult.count > 0) {
-                console.log(`[Sync] Removed ${deleteResult.count} obsolete model(s) from database catalog.`);
+                console.log(`[Sync] Pruned ${deleteResult.count} obsolete model(s) from database catalog.`);
             }
         }
+        catch (dbErr) {
+            console.error(`[Sync] Failed database update step: ${dbErr.message || dbErr}`);
+        }
     }
-    catch (err) {
-        console.error(`[Sync] Failed to sync models with upstream: ${err.message || err}`);
+    else {
+        console.warn('[Sync] No models resolved from upstream check. Catalog left unmodified.');
     }
 }

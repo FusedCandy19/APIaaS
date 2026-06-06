@@ -9,31 +9,41 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const crypto_1 = require("./lib/crypto"); // We will create this next!
 async function main() {
     console.log('Seeding database started...');
-    // 1. Seed Ollama Models
-    const models = [
-        { id: 'llama3', name: 'Llama 3 (8B)', inputPricePerMillion: 0.0, outputPricePerMillion: 0.0 },
-        { id: 'mistral', name: 'Mistral (7B)', inputPricePerMillion: 0.0, outputPricePerMillion: 0.0 },
-        { id: 'gemma', name: 'Gemma (7B)', inputPricePerMillion: 0.0, outputPricePerMillion: 0.0 },
-        { id: 'deepseek-r1', name: 'DeepSeek R1', inputPricePerMillion: 0.0, outputPricePerMillion: 0.0 },
-    ];
-    for (const m of models) {
-        await db_1.prisma.model.upsert({
-            where: { id: m.id },
-            update: {
-                name: m.name,
-                inputPricePerMillion: m.inputPricePerMillion,
-                outputPricePerMillion: m.outputPricePerMillion,
-            },
-            create: {
-                id: m.id,
-                name: m.name,
-                inputPricePerMillion: m.inputPricePerMillion,
-                outputPricePerMillion: m.outputPricePerMillion,
-                enabled: true,
-            },
-        });
+    // 1. Seed Ollama Models dynamically from upstream if reachable
+    try {
+        const { syncModelsWithUpstream } = require('./lib/modelsSync');
+        await syncModelsWithUpstream();
     }
-    console.log('Models seeded.');
+    catch (err) {
+        console.warn('Failed to sync models from upstream during seed stage:', err);
+    }
+    const dbModelsCount = await db_1.prisma.model.count();
+    if (dbModelsCount === 0) {
+        console.log('No active models synced from upstream. Seeding default fallbacks...');
+        const fallbackModels = [
+            { id: 'llama3', name: 'Llama 3 (8B)', inputPricePerMillion: 0.0, outputPricePerMillion: 0.0 },
+            { id: 'mistral', name: 'Mistral (7B)', inputPricePerMillion: 0.0, outputPricePerMillion: 0.0 },
+            { id: 'gemma', name: 'Gemma (7B)', inputPricePerMillion: 0.0, outputPricePerMillion: 0.0 },
+            { id: 'deepseek-r1', name: 'DeepSeek R1', inputPricePerMillion: 0.0, outputPricePerMillion: 0.0 },
+        ];
+        for (const m of fallbackModels) {
+            await db_1.prisma.model.upsert({
+                where: { id: m.id },
+                update: {},
+                create: {
+                    id: m.id,
+                    name: m.name,
+                    inputPricePerMillion: m.inputPricePerMillion,
+                    outputPricePerMillion: m.outputPricePerMillion,
+                    enabled: true,
+                },
+            });
+        }
+        console.log('Fallback models seeded.');
+    }
+    else {
+        console.log('Prisma database catalog initialized with active upstream models.');
+    }
     // 2. Seed Default Branding Config
     await db_1.prisma.brandingConfig.upsert({
         where: { id: 1 },
