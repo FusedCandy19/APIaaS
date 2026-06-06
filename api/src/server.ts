@@ -57,6 +57,7 @@ async function startServer() {
     origin: true, // Allow all origins for dev/dashboard client
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
+    strictPreflight: false,
   });
 
   await fastify.register(jwt, {
