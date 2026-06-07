@@ -56,7 +56,6 @@ async function startServer() {
         origin: true, // Allow all origins for dev/dashboard client
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         credentials: true,
-        strictPreflight: false,
     });
     await fastify.register(jwt_1.default, {
         secret: config_1.config.JWT_SECRET,
@@ -73,8 +72,6 @@ async function startServer() {
     // OpenAI Compatible Gateway endpoints (mapped directly under /v1)
     await fastify.register(models_1.modelsRoutes, { prefix: '/v1' });
     await fastify.register(gateway_1.gatewayRoutes, { prefix: '/v1' });
-    // Also register models under /api/v1 prefix for same-origin dashboard proxy access
-    await fastify.register(models_1.modelsRoutes, { prefix: '/api/v1' });
     // 5. Global Error Handler
     fastify.setErrorHandler((error, request, reply) => {
         fastify.log.error(error);
