@@ -3,17 +3,7 @@ import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import fs from 'fs';
 import path from 'path';
-import { setGlobalDispatcher, Agent } from 'undici';
 import { config } from './config';
-
-// Increase default timeouts for fetch calls (vital for slow/large models loading in Ollama)
-setGlobalDispatcher(
-  new Agent({
-    connectTimeout: 60000,   // 60 seconds
-    headersTimeout: 600000,  // 10 minutes
-    bodyTimeout: 600000,     // 10 minutes
-  })
-);
 
 // Import routes
 import { authRoutes } from './routes/auth';

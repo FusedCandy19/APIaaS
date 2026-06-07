@@ -8,14 +8,7 @@ const cors_1 = __importDefault(require("@fastify/cors"));
 const jwt_1 = __importDefault(require("@fastify/jwt"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-const undici_1 = require("undici");
 const config_1 = require("./config");
-// Increase default timeouts for fetch calls (vital for slow/large models loading in Ollama)
-(0, undici_1.setGlobalDispatcher)(new undici_1.Agent({
-    connectTimeout: 60000, // 60 seconds
-    headersTimeout: 600000, // 10 minutes
-    bodyTimeout: 600000, // 10 minutes
-}));
 // Import routes
 const auth_1 = require("./routes/auth");
 const keys_1 = require("./routes/keys");
