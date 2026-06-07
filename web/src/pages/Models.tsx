@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import { apiClient } from '../api/client';
 import { 
   Cpu, 
   Search, 
@@ -22,22 +22,11 @@ interface ModelInfo {
 export default function Models() {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const getApiBaseUrl = () => {
-    const hostname = window.location.hostname;
-    if (hostname === 'localhost') {
-      return 'https://localhost/v1';
-    }
-    const baseDomain = hostname.replace(/^(web|console|dashboard|admin)\./, '');
-    return `https://api.${baseDomain}/v1`;
-  };
-
-  const baseUrl = getApiBaseUrl();
-
-  // Fetch active models catalog from public API endpoint
+  // Fetch active models catalog from public API endpoint through same-origin proxy
   const { data: modelsData, isLoading, isError, refetch } = useQuery<{ data: ModelInfo[] }>({
     queryKey: ['consoleModelsList'],
     queryFn: async () => {
-      const res = await axios.get(`${baseUrl}/models`);
+      const res = await apiClient.get('/v1/models');
       return res.data;
     },
   });
