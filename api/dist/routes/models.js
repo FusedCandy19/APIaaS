@@ -15,31 +15,11 @@ async function modelsRoutes(fastify) {
         const dbModels = await db_1.prisma.model.findMany({
             where: { enabled: true },
         });
-        const getModelProvider = (id) => {
-            const lower = id.toLowerCase();
-            if (lower.startsWith('gpt') || lower.startsWith('text-davinci'))
-                return 'openai';
-            if (lower.startsWith('claude'))
-                return 'anthropic';
-            if (lower.startsWith('llama'))
-                return 'meta';
-            if (lower.startsWith('mistral') || lower.startsWith('mixtral'))
-                return 'mistral';
-            if (lower.startsWith('gemma') || lower.startsWith('google'))
-                return 'google';
-            if (lower.startsWith('deepseek'))
-                return 'deepseek';
-            if (lower.startsWith('qwen'))
-                return 'alibaba';
-            if (lower.startsWith('phi'))
-                return 'microsoft';
-            return 'ollama'; // Default to ollama/local
-        };
         const openAiModels = dbModels.map((m) => ({
             id: m.id,
             object: 'model',
             created: 1677610000,
-            owned_by: getModelProvider(m.id),
+            owned_by: m.id.startsWith('claude') ? 'anthropic' : 'openai',
             // Custom metadata for our UI
             pricing: {
                 inputPricePerMillion: m.inputPricePerMillion,
