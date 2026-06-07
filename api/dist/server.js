@@ -8,7 +8,14 @@ const cors_1 = __importDefault(require("@fastify/cors"));
 const jwt_1 = __importDefault(require("@fastify/jwt"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const undici_1 = require("undici");
 const config_1 = require("./config");
+// Increase default timeouts for fetch calls (vital for slow/large models loading in Ollama)
+(0, undici_1.setGlobalDispatcher)(new undici_1.Agent({
+    connectTimeout: 60000, // 60 seconds
+    headersTimeout: 600000, // 10 minutes
+    bodyTimeout: 600000, // 10 minutes
+}));
 // Import routes
 const auth_1 = require("./routes/auth");
 const keys_1 = require("./routes/keys");
@@ -56,6 +63,7 @@ async function startServer() {
         origin: true, // Allow all origins for dev/dashboard client
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         credentials: true,
+        strictPreflight: false,
     });
     await fastify.register(jwt_1.default, {
         secret: config_1.config.JWT_SECRET,
@@ -72,6 +80,8 @@ async function startServer() {
     // OpenAI Compatible Gateway endpoints (mapped directly under /v1)
     await fastify.register(models_1.modelsRoutes, { prefix: '/v1' });
     await fastify.register(gateway_1.gatewayRoutes, { prefix: '/v1' });
+    // Also register models under /api/v1 prefix for same-origin dashboard proxy access
+    await fastify.register(models_1.modelsRoutes, { prefix: '/api/v1' });
     // 5. Global Error Handler
     fastify.setErrorHandler((error, request, reply) => {
         fastify.log.error(error);
